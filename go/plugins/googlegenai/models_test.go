@@ -113,7 +113,7 @@ func TestGeminiEmbedding2Registered(t *testing.T) {
 // from supportedGeminiModels still resolves, silently, to the unknown-model
 // fallback, which is labelled with the raw model ID.
 func TestNewlyRegisteredModels(t *testing.T) {
-	for _, name := range []string{gemini37Flash, gemini36Flash, gemini35FlashLite, gemini31ProPreview, gemini31FlashLiteImage} {
+	for _, name := range []string{gemini37Flash, gemini36Flash, gemini35FlashLite, gemini31ProPreview, gemini31FlashLiteImage, gemini38Flash, gemini4Argon, geminiNanoBanana21} {
 		if got := ClassifyModel(name); got != ModelTypeGemini {
 			t.Errorf("ClassifyModel(%q) = %v, want ModelTypeGemini", name, got)
 		}
@@ -136,6 +136,35 @@ func TestNewlyRegisteredModels(t *testing.T) {
 		}
 		if !slices.Contains(googleAIModels, name) {
 			t.Errorf("googleAIModels missing %q", name)
+		}
+	}
+}
+
+// TestOmni11BackendSpellings pins that the omni 1.1 pair is split by backend the
+// same way gemini-omni-flash already is: Google AI without the preview suffix,
+// Vertex with it.
+func TestOmni11BackendSpellings(t *testing.T) {
+	cases := map[string]struct {
+		provider  string
+		wantModel string
+	}{
+		geminiOmni11Flash:        {provider: googleAIProvider, wantModel: geminiOmni11Flash},
+		geminiOmni11FlashPreview: {provider: vertexAIProvider, wantModel: geminiOmni11FlashPreview},
+	}
+	for name, tc := range cases {
+		ownBackend, otherBackend := googleAIModels, vertexAIModels
+		if tc.provider == vertexAIProvider {
+			ownBackend, otherBackend = vertexAIModels, googleAIModels
+		}
+		if !slices.Contains(ownBackend, tc.wantModel) {
+			t.Errorf("%s list missing %q", tc.provider, tc.wantModel)
+		}
+		if slices.Contains(otherBackend, tc.wantModel) {
+			t.Errorf("%s list should not carry the other backend's spelling %q", tc.provider, tc.wantModel)
+		}
+		opts := GetModelOptions(name, tc.provider)
+		if hitUnknownModelFallback(opts, name) {
+			t.Errorf("GetModelOptions(%q, %q).Label = %q, want a curated label (hit the unknown-model fallback)", name, tc.provider, opts.Label)
 		}
 	}
 }

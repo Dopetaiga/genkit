@@ -67,6 +67,20 @@ export type OpenAIPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
 
 const UNSUPPORTED_MODEL_MATCHERS = ['babbage', 'davinci', 'codex'];
 
+/**
+ * An OpenAI image-generation model, by name: the legacy DALL·E spellings and
+ * every GPT-image generation, so current models like `gpt-image-2` route to the
+ * Images API instead of Chat Completions (#6887).
+ */
+function isOpenAIImageModel(name: string): boolean {
+  return (
+    name.startsWith('gpt-image-') ||
+    name.startsWith('chatgpt-image-') ||
+    name.includes('dall-e')
+  );
+}
+
+
 function createResolver(pluginOptions: PluginOptions) {
   return async (client: OpenAI, actionType: ActionType, actionName: string) => {
     if (actionType === 'embedder') {
@@ -75,16 +89,16 @@ function createResolver(pluginOptions: PluginOptions) {
         client,
         pluginOptions,
       });
-    } else if (
-      actionName.includes('gpt-image-1') ||
-      actionName.includes('dall-e')
-    ) {
+    } else if (isOpenAIImageModel(actionName)) {
       const modelRef = openAIImageModelRef({ name: actionName });
       return defineCompatOpenAIImageModel({
         name: modelRef.name,
         client,
         pluginOptions,
         modelRef,
+        requestBuilder: actionName.startsWith('gpt-image-')
+          ? gptImage1RequestBuilder
+          : undefined,
       });
     } else if (actionName.includes('tts')) {
       const modelRef = openAISpeechModelRef({ name: actionName });
@@ -137,10 +151,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
           configSchema: TextEmbeddingConfigSchema,
           info: SUPPORTED_EMBEDDING_MODELS[model.id]?.info,
         });
-      } else if (
-        model.id.includes('gpt-image-1') ||
-        model.id.includes('dall-e')
-      ) {
+      } else if (isOpenAIImageModel(model.id)) {
         const modelRef =
           SUPPORTED_IMAGE_MODELS[model.id] ??
           openAIImageModelRef({ name: model.id });
@@ -253,7 +264,7 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPluginV2 {
             client,
             pluginOptions,
             modelRef,
-            requestBuilder: modelRef.name.includes('gpt-image-1')
+            requestBuilder: modelRef.name.startsWith('gpt-image-')
               ? gptImage1RequestBuilder
               : undefined,
           })
@@ -308,7 +319,7 @@ export type OpenAIPlugin = {
 };
 
 const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
-  if (name.includes('gpt-image-1') || name.includes('dall-e')) {
+  if (isOpenAIImageModel(name)) {
     return openAIImageModelRef({
       name,
       config,

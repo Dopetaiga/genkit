@@ -44,7 +44,7 @@ const gptImageConfigSchema = ImageGenerationCommonConfigSchema.omit({
   background: z.enum(['transparent', 'opaque', 'auto']).optional(),
   moderation: z.enum(['low', 'auto']).optional(),
   output_compression: z.number().int().min(1).max(100).optional(),
-  output_format: z.enum(['png', 'jpeg', 'web']).optional(),
+  output_format: z.enum(['png', 'jpeg', 'webp']).optional(),
   quality: z.enum(['low', 'medium', 'high', 'auto']).optional(),
 });
 

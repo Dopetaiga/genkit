@@ -80,6 +80,12 @@ function isOpenAIImageModel(name: string): boolean {
   );
 }
 
+/** A GPT-image generation model: the Images API request builder applies, and
+ * `response_format` is not a supported parameter. */
+function isGPTImageModel(name: string): boolean {
+  return name.startsWith('gpt-image-') || name.startsWith('chatgpt-image-');
+}
+
 
 function createResolver(pluginOptions: PluginOptions) {
   return async (client: OpenAI, actionType: ActionType, actionName: string) => {
@@ -96,7 +102,7 @@ function createResolver(pluginOptions: PluginOptions) {
         client,
         pluginOptions,
         modelRef,
-        requestBuilder: actionName.startsWith('gpt-image-')
+        requestBuilder: isGPTImageModel(actionName)
           ? gptImage1RequestBuilder
           : undefined,
       });
@@ -264,7 +270,7 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPluginV2 {
             client,
             pluginOptions,
             modelRef,
-            requestBuilder: modelRef.name.startsWith('gpt-image-')
+            requestBuilder: isGPTImageModel(modelRef.name)
               ? gptImage1RequestBuilder
               : undefined,
           })
